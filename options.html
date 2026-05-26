@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Zalo Translator Settings</title>
+    <style>
+      body {
+        font-family: -apple-system, system-ui, sans-serif;
+        padding: 24px;
+        max-width: 480px;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 16px;
+      }
+      label {
+        display: block;
+        margin: 14px 0 4px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      input[type="text"],
+      select {
+        width: 100%;
+        padding: 8px 10px;
+        font-size: 14px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        margin-top: 18px;
+        padding: 9px 18px;
+        background: #0068ff;
+        color: #fff;
+        border: 0;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:hover {
+        background: #0055d4;
+      }
+      .help {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+      }
+      .help code {
+        background: #f3f3f3;
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #0a8a3a;
+      }
+      a {
+        color: #0068ff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Zalo Translator</h1>
+
+    <p class="help" style="margin-top: 0">
+      Uses Google Translate's free public endpoint — no API key needed. Google
+      may rate-limit if you translate hundreds of messages per minute from the
+      same IP.
+    </p>
+
+    <label for="source">Source language</label>
+    <select id="source">
+      <option value="vi">Vietnamese (best for Zalo)</option>
+      <option value="auto">Auto-detect</option>
+    </select>
+
+    <label for="target">Target language</label>
+    <select id="target">
+      <option value="en">English</option>
+      <option value="en-US">English (US)</option>
+      <option value="en-GB">English (UK)</option>
+    </select>
+
+    <button id="save">Save</button>
+    <div class="status" id="status"></div>
+
+    <script src="options.js"></script>
+  </body>
+</html>

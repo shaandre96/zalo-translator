@@ -1,0 +1,29 @@
+.zt-translation {
+  margin: 6px 0 2px;
+  padding: 6px 10px;
+  background: rgba(0, 104, 255, 0.14);
+  border-left: 3px solid #0068ff;
+  border-radius: 6px;
+  font-size: 14px;
+  color: inherit;
+  line-height: 1.45;
+  font-family: inherit;
+  word-break: break-word;
+}
+
+.zt-translation .zt-label {
+  display: inline-block;
+  background: #0068ff;
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-right: 6px;
+  font-weight: 600;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+}
+
+.zt-translation .zt-err {
+  color: #ff6b6b;
+}
