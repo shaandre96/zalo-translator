@@ -1,5 +1,12 @@
 const enabledEl = document.getElementById("enabled");
 const optsEl = document.getElementById("opts");
+const gearEl = document.getElementById("gear");
+
+function openSettings(e) {
+  e.preventDefault();
+  chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+  window.close();
+}
 
 chrome.storage.sync.get(["enabled"]).then(({ enabled }) => {
   enabledEl.checked = enabled !== false;
@@ -14,7 +21,5 @@ enabledEl.addEventListener("change", async () => {
   }
 });
 
-optsEl.addEventListener("click", (e) => {
-  e.preventDefault();
-  chrome.runtime.openOptionsPage();
-});
+optsEl.addEventListener("click", openSettings);
+gearEl.addEventListener("click", openSettings);

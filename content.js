@@ -13,7 +13,7 @@
   }
 
   function getTranslation(text) {
-    if (CACHE.has(text)) return Promise.resolve(CACHE.get(text));
+    if (CACHE.has(text)) return Promise.resolve({ translation: CACHE.get(text) });
     if (INFLIGHT.has(text)) return INFLIGHT.get(text);
 
     const p = chrome.runtime
@@ -22,27 +22,28 @@
         INFLIGHT.delete(text);
         if (res?.error) {
           console.warn("[zalo-translator]", res.error);
-          return null;
+          return { error: res.error };
         }
         const translation = res?.translation || "";
         if (translation) CACHE.set(text, translation);
-        return translation;
+        return { translation };
       })
       .catch((err) => {
         INFLIGHT.delete(text);
-        console.warn("[zalo-translator]", err);
-        return null;
+        const message = err?.message || String(err);
+        console.warn("[zalo-translator]", message);
+        return { error: message };
       });
 
     INFLIGHT.set(text, p);
     return p;
   }
 
-  function inject(bubble, translation) {
+  function inject(bubble, translation, isError = false) {
     if (bubble.nextElementSibling?.classList?.contains("zt-translation")) return;
     if (!bubble.parentNode) return;
     const div = document.createElement("div");
-    div.className = "zt-translation";
+    div.className = "zt-translation" + (isError ? " zt-translation--err" : "");
     div.innerHTML = '<span class="zt-label">EN</span> <span class="zt-body"></span>';
     div.querySelector(".zt-body").textContent = translation;
     bubble.parentNode.insertBefore(div, bubble.nextSibling);
@@ -53,8 +54,9 @@
     if (bubble.nextElementSibling?.classList?.contains("zt-translation")) return;
     const text = (bubble.innerText || "").trim();
     if (!isLikelyVietnamese(text)) return;
-    const translation = await getTranslation(text);
-    if (translation) inject(bubble, translation);
+    const result = await getTranslation(text);
+    if (result?.translation) inject(bubble, result.translation);
+    else if (result?.error) inject(bubble, "Translation unavailable — try again shortly.", true);
   }
 
   function scan(root) {

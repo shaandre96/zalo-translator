@@ -24,6 +24,16 @@
   letter-spacing: 0.3px;
 }
 
-.zt-translation .zt-err {
-  color: #ff6b6b;
+.zt-translation--err {
+  background: rgba(192, 57, 43, 0.12);
+  border-left-color: #c0392b;
+}
+
+.zt-translation--err .zt-label {
+  background: #c0392b;
+}
+
+.zt-translation--err .zt-body {
+  color: #a93226;
+  font-size: 13px;
 }

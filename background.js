@@ -1,13 +1,86 @@
 const GOOGLE_URL = "https://translate.googleapis.com/translate_a/single";
+const MIN_INTERVAL_MS = 450;
+const BACKOFF_MS = 60_000;
+
+let lastRequestAt = 0;
+let backoffUntil = 0;
+const queue = [];
+/** @type {Map<string, Promise<{translation?: string, detected?: string, error?: string}>>} */
+const queuedByText = new Map();
+let pumping = false;
 
 chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
   if (req?.type === "translate") {
-    translate(req.text)
+    enqueueTranslate(req.text)
       .then(sendResponse)
-      .catch((err) => sendResponse({ error: err.message || String(err) }));
+      .catch((err) => sendResponse({ error: formatFetchError(err) }));
     return true;
   }
 });
+
+function formatFetchError(err) {
+  const msg = err?.message || String(err);
+  if (msg === "Failed to fetch") {
+    return "Network error talking to Google Translate (often rate limiting). Wait ~1 minute.";
+  }
+  return msg;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function enqueueTranslate(text) {
+  if (queuedByText.has(text)) return queuedByText.get(text);
+
+  const p = new Promise((resolve) => {
+    queue.push({ text, resolve });
+    pumpQueue();
+  }).finally(() => {
+    queuedByText.delete(text);
+  });
+
+  queuedByText.set(text, p);
+  return p;
+}
+
+async function pumpQueue() {
+  if (pumping) return;
+  pumping = true;
+
+  while (queue.length > 0) {
+    const now = Date.now();
+    if (now < backoffUntil) {
+      await sleep(backoffUntil - now);
+    }
+
+    const gap = MIN_INTERVAL_MS - (Date.now() - lastRequestAt);
+    if (gap > 0) await sleep(gap);
+
+    const job = queue.shift();
+    if (!job) break;
+
+    try {
+      const result = await translate(job.text);
+      if (result.error) {
+        const rateLimited =
+          result.error.includes("rate-limit") ||
+          result.error.includes("429") ||
+          result.error.includes("Network error");
+        if (rateLimited) backoffUntil = Date.now() + BACKOFF_MS;
+      } else {
+        lastRequestAt = Date.now();
+      }
+      job.resolve(result);
+    } catch (err) {
+      const error = formatFetchError(err);
+      backoffUntil = Date.now() + BACKOFF_MS;
+      job.resolve({ error });
+    }
+  }
+
+  pumping = false;
+}
 
 async function translate(text) {
   const { sourceLang = "vi", targetLang = "en" } = await chrome.storage.sync.get([
@@ -23,11 +96,16 @@ async function translate(text) {
 
   const body = `q=${encodeURIComponent(text)}`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+  } catch (err) {
+    return { error: formatFetchError(err) };
+  }
 
   if (!res.ok) {
     if (res.status === 429) {
