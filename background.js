@@ -1,3 +1,19 @@
+importScripts("lang-utils.js");
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const { sourceLangs, sourceLang, targetLang } = await chrome.storage.sync.get([
+    "sourceLangs",
+    "sourceLang",
+    "targetLang",
+  ]);
+  if (!Array.isArray(sourceLangs)) {
+    await chrome.storage.sync.set({ sourceLangs: ZTLang.DEFAULT_SOURCE_LANGS.slice() });
+  }
+  if (sourceLang !== undefined || targetLang !== undefined) {
+    await chrome.storage.sync.remove(["sourceLang", "targetLang"]);
+  }
+});
+
 const GOOGLE_URL = "https://translate.googleapis.com/translate_a/single";
 const MIN_INTERVAL_MS = 450;
 const BACKOFF_MS = 60_000;
@@ -83,15 +99,10 @@ async function pumpQueue() {
 }
 
 async function translate(text) {
-  const { sourceLang = "vi", targetLang = "en" } = await chrome.storage.sync.get([
-    "sourceLang",
-    "targetLang",
-  ]);
-
   const url =
     `${GOOGLE_URL}?client=gtx` +
-    `&sl=${encodeURIComponent(sourceLang)}` +
-    `&tl=${encodeURIComponent(targetLang)}` +
+    `&sl=auto` +
+    `&tl=vi` +
     `&dt=t`;
 
   const body = `q=${encodeURIComponent(text)}`;
@@ -121,7 +132,7 @@ async function translate(text) {
     .map((seg) => (Array.isArray(seg) ? seg[0] : ""))
     .filter(Boolean)
     .join("");
-  const detected = data?.[2] || sourceLang;
+  const detected = data?.[2] || "";
 
   return { translation, detected };
 }
