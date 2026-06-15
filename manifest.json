@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "Zalo Translator",
 	"version": "1.1.0",
-	"description": "Auto-translate incoming Zalo Web messages between languages (Vietnamese, English, Chinese, Korean, Japanese, Thai) via Google Translate.",
+	"description": "Translate incoming Zalo Web messages between Vietnamese, English, Chinese, Korean, Japanese and Thai via Google Translate.",
 	"permissions": ["storage"],
 	"host_permissions": [
 		"https://chat.zalo.me/*",
