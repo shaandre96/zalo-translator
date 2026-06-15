@@ -1,6 +1,11 @@
 (() => {
-  const DEFAULTS = ZTLang.DEFAULT_SOURCE_LANGS;
-  const STATE = { enabled: true, sourceLangs: DEFAULTS.slice() };
+  const DEFAULT_SOURCES = ZTLang.DEFAULT_SOURCE_LANGS;
+  const DEFAULT_TARGET = ZTLang.DEFAULT_TARGET_LANG;
+  const STATE = {
+    enabled: true,
+    sourceLangs: DEFAULT_SOURCES.slice(),
+    targetLang: DEFAULT_TARGET,
+  };
   const CACHE = new Map(); // text -> { translation, detected }
   const INFLIGHT = new Map();
 
@@ -41,7 +46,8 @@
     if (!bubble.parentNode) return;
     const div = document.createElement("div");
     div.className = "zt-translation" + (isError ? " zt-translation--err" : "");
-    div.innerHTML = '<span class="zt-label">VI</span> <span class="zt-body"></span>';
+    div.innerHTML = '<span class="zt-label"></span> <span class="zt-body"></span>';
+    div.querySelector(".zt-label").textContent = ZTLang.targetLabel(STATE.targetLang);
     div.querySelector(".zt-body").textContent = translation;
     bubble.parentNode.insertBefore(div, bubble.nextSibling);
   }
@@ -50,13 +56,18 @@
     if (!STATE.enabled) return;
     if (bubble.nextElementSibling?.classList?.contains("zt-translation")) return;
     const text = (bubble.innerText || "").trim();
-    if (!text || ZTLang.isLikelyVietnamese(text)) return;
+    if (!text) return;
+    const isVi = ZTLang.isLikelyVietnamese(text);
+    if (!ZTLang.shouldRequest(isVi, STATE.sourceLangs, STATE.targetLang)) return;
     const result = await getTranslation(text);
     if (result?.error) {
       inject(bubble, "Translation unavailable — try again shortly.", true);
       return;
     }
-    if (result?.translation && ZTLang.matchesSelected(result.detected, STATE.sourceLangs)) {
+    if (
+      result?.translation &&
+      ZTLang.shouldTranslate(result.detected, STATE.sourceLangs, STATE.targetLang)
+    ) {
       inject(bubble, result.translation);
     }
   }
@@ -90,18 +101,34 @@
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "sync") return;
+    let changed = false;
     if (changes.sourceLangs) {
       STATE.sourceLangs = Array.isArray(changes.sourceLangs.newValue)
         ? changes.sourceLangs.newValue
-        : DEFAULTS.slice();
+        : DEFAULT_SOURCES.slice();
+      changed = true;
+    }
+    if (changes.targetLang) {
+      STATE.targetLang =
+        typeof changes.targetLang.newValue === "string"
+          ? changes.targetLang.newValue
+          : DEFAULT_TARGET;
+      // Cached translations target the old language — discard them.
+      CACHE.clear();
+      changed = true;
+    }
+    if (changed) {
       removeAllTranslations();
       if (STATE.enabled) scan(document.body);
     }
   });
 
-  chrome.storage.sync.get(["enabled", "sourceLangs"]).then(({ enabled, sourceLangs }) => {
-    STATE.enabled = enabled !== false;
-    if (Array.isArray(sourceLangs)) STATE.sourceLangs = sourceLangs;
-    if (STATE.enabled) scan(document.body);
-  });
+  chrome.storage.sync
+    .get(["enabled", "sourceLangs", "targetLang"])
+    .then(({ enabled, sourceLangs, targetLang }) => {
+      STATE.enabled = enabled !== false;
+      if (Array.isArray(sourceLangs)) STATE.sourceLangs = sourceLangs;
+      if (typeof targetLang === "string") STATE.targetLang = targetLang;
+      if (STATE.enabled) scan(document.body);
+    });
 })();
