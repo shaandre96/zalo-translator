@@ -1,131 +1,154 @@
-# Zalo Translator — Multi-Source → Vietnamese
+# Zalo Translator — Configurable Source/Target Translation
 
 **Date:** 2026-06-16
-**Status:** Approved for planning
+**Status:** Approved for planning (revised)
 
 ## Summary
 
-Pivot the extension from "Vietnamese → English" to "selected source languages →
-Vietnamese." The user picks which source languages they expect to receive
-(curated multi-select); incoming Zalo Web messages detected in any selected
-language are translated to Vietnamese and shown below the message bubble.
+Make translation fully configurable: the user picks **multiple source
+languages** (multi-select) and **one target language** (single-select). Incoming
+Zalo Web messages whose detected language is in the selected source set — and is
+not already the target language — are translated to the target language and shown
+below the message bubble.
 
-Target language is **fixed to Vietnamese** — there is no target picker.
+This supersedes the earlier "fixed Vietnamese target" design. It covers both
+"Vietnamese → English" (the original v1.0 behavior) and "multiple languages →
+Vietnamese," plus any other combination among the supported languages.
 
 ## Motivation
 
-The current extension serves an English speaker reading a Vietnamese chat: it
-detects Vietnamese text via a diacritics regex and translates it to English. The
-new goal is the inverse and broader — a Vietnamese speaker reading messages that
-arrive in a mix of foreign languages, all rendered into Vietnamese.
+The original extension translated Vietnamese → English for an English speaker.
+The first revision pivoted to many → Vietnamese, but that removed the VI→English
+capability entirely. This design keeps both directions available by making source
+and target user-configurable.
 
-## Detection strategy
+## Supported languages
 
-We cannot reliably know a message's language client-side before asking Google
-(the existing diacritics regex only works because Vietnamese has distinctive
-characters; it cannot distinguish, e.g., English from French).
+Both the source multi-select and the target single-select offer the same six
+languages:
 
-**Chosen approach:** send each received message to Google with `sl=auto&tl=vi`.
-Google returns both the Vietnamese translation and the detected source language
-(`data[2]`). Inject the translation only if the detected language is in the
-user's selected set. Cache results — including "skip" decisions — so identical
-text is never re-requested.
+| Code    | Name     | Native        |
+|---------|----------|---------------|
+| `vi`    | Vietnamese | Tiếng Việt  |
+| `en`    | English  | English       |
+| `zh-CN` | Chinese  | 中文 (简体)    |
+| `ko`    | Korean   | 한국어        |
+| `ja`    | Japanese | 日本語        |
+| `th`    | Thai     | ไทย           |
 
-Rejected alternatives:
-- Pure client-side Unicode-script detection — fails for Latin-script languages
-  (cannot tell English from French), which is exactly the use case.
-- Translate every received message unconditionally — heaviest on Google's rate
-  limit and shows translations the user did not ask for.
+## Configuration model
+
+- `sourceLangs: string[]` — selected source languages (e.g. `["vi"]`).
+- `targetLang: string` — the single target language (e.g. `"en"`).
+- Both stored in `chrome.storage.sync`.
+- **Defaults:** `sourceLangs = ["vi"]`, `targetLang = "en"` — restores the
+  original Vietnamese → English behavior out of the box.
+
+## Translate rule
+
+A received message is translated and injected when:
+
+1. its Google-detected language is in `sourceLangs` (base-code match, so `zh`,
+   `zh-CN`, `zh-TW` all match a `zh-CN` selection), **and**
+2. the detected language is **not** the target language (no same-language
+   translation, e.g. English → English).
+
+## Detection & request strategy
+
+We cannot reliably detect a message's language client-side before sending it to
+Google — **except Vietnamese**, via the existing diacritics heuristic
+(`isLikelyVietnamese`). We use that to avoid wasted requests:
+
+- **Vietnamese-looking message:** request a translation only if Vietnamese is a
+  selected source **and** the target is not Vietnamese.
+- **Any other message:** request a translation only if at least one
+  non-Vietnamese source language is selected.
+
+Consequences:
+- Default **VI → EN** (`sourceLangs=["vi"]`, `targetLang="en"`): only
+  Vietnamese-looking messages are sent — as lean as v1.0.
+- **→ VI** modes (target `vi`, non-Vietnamese sources): Vietnamese messages are
+  never sent; other messages are sent and filtered by detected language.
+
+After a request returns, injection is still gated by the Translate rule above
+(detected ∈ sources AND detected ≠ target), which also catches diacritics
+false-positives.
 
 ## Components
 
-### 1. Settings model — `options.html` / `options.js`
+### Shared utilities — `lang-utils.js`
 
-- Replace the single source dropdown and the target dropdown with **5
-  checkboxes**: English (`en`), Chinese Simplified (`zh-CN`), Korean (`ko`),
-  Japanese (`ja`), Thai (`th`).
-- No target picker — target is always Vietnamese (`vi`).
-- Persist as `sourceLangs: string[]` in `chrome.storage.sync`, e.g.
-  `["en","zh-CN","ko","ja","th"]`.
-- **Default = all 5 checked.** Migration: if legacy `sourceLang` / `targetLang`
-  keys exist in storage, **remove them** (`chrome.storage.sync.remove`) and seed
-  the new default `sourceLangs`. No legacy keys are left behind.
-- Save button persists `sourceLangs`; status message unchanged.
+Pure, dual-exported (CommonJS for tests, global `ZTLang` in the browser):
 
-### 2. Translation request — `background.js`
+- `isLikelyVietnamese(text)` — diacritics heuristic (unchanged).
+- `normalizeLang(code)` — lowercase + strip region (`zh-CN` → `zh`).
+- `matchesSelected(detected, selected)` — base-code membership test.
+- `shouldRequest(isViLikely, sources, target)` — the request strategy above.
+  Returns false for empty/invalid `sources`.
+- `shouldTranslate(detected, sources, target)` — `matchesSelected(detected,
+  sources) && normalizeLang(detected) !== normalizeLang(target)`.
+- `targetLabel(target)` — `normalizeLang(target).toUpperCase()` (e.g. `EN`,
+  `VI`, `ZH`), used for the injected label.
+- Constants: `DEFAULT_SOURCE_LANGS = ["vi"]`, `DEFAULT_TARGET_LANG = "en"`.
 
-- Always call Google with `sl=auto&tl=vi` (drop the stored `sourceLang` /
-  `targetLang` lookup).
-- Run the one-time legacy-key migration here on service-worker startup
-  (`chrome.runtime.onInstalled`): if `sourceLang` / `targetLang` are present and
-  `sourceLangs` is unset, seed `sourceLangs` to the default 5 and remove the two
-  legacy keys.
-- Continue returning `{ translation, detected }`. The `detected` value
-  (`data[2]`) is the filter key used by the content script.
-- Rate-limiting, queue, and backoff logic are unchanged.
+### Background — `background.js`
 
-### 3. Detection & injection — `content.js`
+- `importScripts("lang-utils.js")` (first line).
+- `translate(text)` reads `targetLang` from storage (default `"en"`) and requests
+  `sl=auto&tl=<targetLang>`. Returns `{ translation, detected }`.
+- `onInstalled` migration: if `sourceLangs` is not an array, seed
+  `DEFAULT_SOURCE_LANGS`; if `targetLang` is not a string, seed
+  `DEFAULT_TARGET_LANG`; remove the obsolete singular legacy key `sourceLang`
+  (the current `targetLang` key is kept — an old v1.0 value carries over).
+- Queue / rate-limit / backoff unchanged.
 
-- Continue targeting **received messages only** via `RECV_SELECTOR`
-  (`[data-id="div_ReceivedMsg_Text"]`).
-- **Pre-skip:** if text matches the Vietnamese diacritics regex, skip — no point
-  translating Vietnamese → Vietnamese, and it saves an API call.
-- Send remaining text. On response, read `result.detected` and inject the
-  translation **only if the detected language is in `sourceLangs`**.
-- **Language normalization:** Google returns Chinese as `zh` (sometimes
-  `zh-CN` / `zh-TW`). Normalize so any `zh*` detection matches the Chinese
-  (`zh-CN`) checkbox. Apply the same base-code matching generally (compare on
-  the part before `-`).
-- **Cache:** store the detected language alongside the translation so a message
-  whose language is not selected is remembered and never re-requested. Cache key
-  remains the message text.
-- Change the injected label from **"EN" → "VI"**.
-- Load `sourceLangs` from storage on init; default to all 5 if unset.
-- Live update: keep the existing `set-enabled` message flow for the on/off
-  toggle. To pick up `sourceLangs` edits, the content script watches
-  `chrome.storage.onChanged`; when `sourceLangs` changes it updates its in-memory
-  set, removes existing translations, and re-scans so newly-eligible messages get
-  translated and now-ineligible ones disappear.
+### Content script — `content.js`
 
-### 4. Cosmetic / metadata
+- `STATE = { enabled, sourceLangs, targetLang }`, loaded on init from storage
+  (defaulting to the constants).
+- Process received messages only (`RECV_SELECTOR`).
+- `process`: skip empty text; compute `isLikelyVietnamese`; skip unless
+  `ZTLang.shouldRequest(isVi, sourceLangs, targetLang)`; request translation; on
+  error inject the "Translation unavailable" note; otherwise inject only if
+  `ZTLang.shouldTranslate(detected, sourceLangs, targetLang)`.
+- `inject`: label = `ZTLang.targetLabel(STATE.targetLang)` (computed per call).
+- Cache stores `{ translation, detected }` keyed by text.
+- `chrome.storage.onChanged` (sync): on `sourceLangs` change, update state,
+  remove translations, re-scan. On `targetLang` change, additionally **clear the
+  cache** (cached translations target the old language), then remove + re-scan.
 
-- `manifest.json` description → "Auto-translate incoming Zalo Web messages
-  (English, Chinese, Korean, Japanese, Thai) into Vietnamese via Google
-  Translate."
-- `manifest.json` version → `1.1.0`.
-- `popup.html` toggle label "Auto-translate Vietnamese" → "Auto-translate to
-  Vietnamese".
+### Options — `options.html` / `options.js`
 
-## Data flow
+- **Source languages:** the grouped multi-select list, now six rows including
+  Vietnamese (native names shown muted).
+- **Target language:** a single `<select id="target">` with the six languages,
+  reusing the existing `.zt-field select` styling.
+- `options.js`: load `sourceLangs` (default `DEFAULT_SOURCE_LANGS`) and
+  `targetLang` (default `DEFAULT_TARGET_LANG`); on Save, collect checked sources
+  (block empty selection with a status message) and the selected target, store
+  both.
 
-1. Content script observes new received message bubbles.
-2. Skip if empty or matches Vietnamese diacritics regex.
-3. Check text cache; if present, use cached `{ translation, detected }`.
-4. Otherwise send `{ type: "translate", text }` to background.
-5. Background calls Google `sl=auto&tl=vi`, returns `{ translation, detected }`.
-6. Content script caches the result, then injects only if normalized `detected`
-   is in `sourceLangs`. Label = "VI".
+### Manifest — `manifest.json`
 
-## Error handling
-
-- Network / rate-limit errors: unchanged — background applies backoff; content
-  script injects the existing "Translation unavailable" error note.
-- Empty translation: do not inject.
+- Description updated to reflect configurable translation.
+- Version remains `1.1.0`; `lang-utils.js` already registered before
+  `content.js`.
 
 ## Testing
 
-- Vietnamese message → skipped (no request, no injection).
-- English / Chinese / Korean / Japanese / Thai message → translated to
-  Vietnamese, labeled "VI", when that language is checked.
-- Message in a language **not** checked (e.g. German) → request made once,
-  detected, not injected, and cached so it is not re-requested.
-- Chinese detected as `zh` still matches the `zh-CN` checkbox.
-- Unchecking a language and re-scanning stops new injections for it.
-- Toggle off via popup removes all translations; toggle on re-scans.
+- Pure logic (unit tests, `node:test`): `normalizeLang`, `matchesSelected`,
+  `shouldRequest` (all four branches), `shouldTranslate` (incl. same-language
+  skip), `targetLabel`, and the two default constants.
+- Manual (in Chrome): default VI→EN translates Vietnamese to English and only
+  sends Vietnamese-looking text; switching target to Vietnamese + selecting
+  non-Vietnamese sources translates those into Vietnamese and skips Vietnamese;
+  same-language is never injected; label matches the target; changing target
+  re-translates existing messages into the new language; empty source selection
+  is blocked; toggle on/off works; legacy `sourceLang` removed while `targetLang`
+  is preserved.
 
 ## Out of scope
 
 - Sent/outgoing messages (received only).
-- The broader ~100-language list (curated 5 only).
+- Languages beyond the six listed; English regional variants in the target list.
 - Per-message manual translate buttons.
-- Keeping English (or any non-Vietnamese) as a target.

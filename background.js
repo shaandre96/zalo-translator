@@ -1,3 +1,27 @@
+importScripts("lang-utils.js");
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const { sourceLangs, targetLang, sourceLang } = await chrome.storage.sync.get([
+    "sourceLangs",
+    "targetLang",
+    "sourceLang",
+  ]);
+  const updates = {};
+  if (!Array.isArray(sourceLangs)) {
+    updates.sourceLangs = ZTLang.DEFAULT_SOURCE_LANGS.slice();
+  }
+  if (typeof targetLang !== "string") {
+    updates.targetLang = ZTLang.DEFAULT_TARGET_LANG;
+  }
+  if (Object.keys(updates).length) {
+    await chrome.storage.sync.set(updates);
+  }
+  // Remove the obsolete singular source key from v1.0; targetLang is still used.
+  if (sourceLang !== undefined) {
+    await chrome.storage.sync.remove(["sourceLang"]);
+  }
+});
+
 const GOOGLE_URL = "https://translate.googleapis.com/translate_a/single";
 const MIN_INTERVAL_MS = 450;
 const BACKOFF_MS = 60_000;
@@ -83,14 +107,11 @@ async function pumpQueue() {
 }
 
 async function translate(text) {
-  const { sourceLang = "vi", targetLang = "en" } = await chrome.storage.sync.get([
-    "sourceLang",
-    "targetLang",
-  ]);
+  const { targetLang = "en" } = await chrome.storage.sync.get(["targetLang"]);
 
   const url =
     `${GOOGLE_URL}?client=gtx` +
-    `&sl=${encodeURIComponent(sourceLang)}` +
+    `&sl=auto` +
     `&tl=${encodeURIComponent(targetLang)}` +
     `&dt=t`;
 
@@ -121,7 +142,7 @@ async function translate(text) {
     .map((seg) => (Array.isArray(seg) ? seg[0] : ""))
     .filter(Boolean)
     .join("");
-  const detected = data?.[2] || sourceLang;
+  const detected = data?.[2] || "";
 
   return { translation, detected };
 }

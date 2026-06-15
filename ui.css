@@ -247,3 +247,92 @@ body.zt-options-page {
   min-height: 1.25em;
   text-align: center;
 }
+
+/* Options: source-language list */
+.zt-field-head {
+  margin-bottom: 10px;
+}
+
+.zt-field-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--zt-text);
+}
+
+.zt-field-sub {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--zt-muted);
+}
+
+.zt-lang-list {
+  border: 1px solid var(--zt-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.zt-lang-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  cursor: pointer;
+  user-select: none;
+  border-top: 1px solid var(--zt-border);
+  transition: background 0.13s ease;
+}
+
+.zt-lang-row:first-child {
+  border-top: 0;
+}
+
+.zt-lang-row:hover {
+  background: #f6f8fc;
+}
+
+.zt-lang-row:has(input:checked) {
+  background: rgba(0, 104, 255, 0.05);
+}
+
+.zt-lang-row input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.zt-lang-row .zt-check-box {
+  width: 20px;
+  height: 20px;
+}
+
+.zt-lang-row input:checked + .zt-check-box {
+  background: var(--zt-blue);
+  border-color: var(--zt-blue);
+}
+
+.zt-lang-row input:checked + .zt-check-box svg {
+  opacity: 1;
+}
+
+.zt-lang-row input:focus-visible + .zt-check-box {
+  outline: 2px solid rgba(0, 104, 255, 0.4);
+  outline-offset: 2px;
+}
+
+.zt-lang-name {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--zt-text);
+}
+
+.zt-lang-native {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--zt-muted);
+}

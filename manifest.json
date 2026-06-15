@@ -1,8 +1,8 @@
 {
 	"manifest_version": 3,
 	"name": "Zalo Translator",
-	"version": "1.0.0",
-	"description": "Auto-translate incoming Vietnamese Zalo Web messages to English via Google Translate.",
+	"version": "1.1.0",
+	"description": "Auto-translate incoming Zalo Web messages between languages (Vietnamese, English, Chinese, Korean, Japanese, Thai) via Google Translate.",
 	"permissions": ["storage"],
 	"host_permissions": [
 		"https://chat.zalo.me/*",
@@ -15,7 +15,7 @@
 	"content_scripts": [
 		{
 			"matches": ["https://chat.zalo.me/*", "https://zalo.me/*"],
-			"js": ["content.js"],
+			"js": ["lang-utils.js", "content.js"],
 			"css": ["content.css"],
 			"run_at": "document_idle"
 		}

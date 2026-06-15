@@ -22,20 +22,88 @@
           </p>
 
           <div class="zt-field">
-            <label for="source">Source language</label>
-            <select id="source">
-              <option value="vi">Vietnamese (best for Zalo)</option>
-              <option value="auto">Auto-detect</option>
+            <label for="target">Target language</label>
+            <select id="target">
+              <option value="vi">Vietnamese — Tiếng Việt</option>
+              <option value="en">English</option>
+              <option value="zh-CN">Chinese — 中文 (简体)</option>
+              <option value="ko">Korean — 한국어</option>
+              <option value="ja">Japanese — 日本語</option>
+              <option value="th">Thai — ไทย</option>
             </select>
           </div>
 
           <div class="zt-field">
-            <label for="target">Target language</label>
-            <select id="target">
-              <option value="en">English</option>
-              <option value="en-US">English (US)</option>
-              <option value="en-GB">English (UK)</option>
-            </select>
+            <div class="zt-field-head">
+              <div class="zt-field-title">Source languages</div>
+              <p class="zt-field-sub">
+                Incoming messages detected in these languages are translated into
+                the target language. Messages already in the target language are
+                left untouched.
+              </p>
+            </div>
+            <div class="zt-lang-list" id="langs">
+              <label class="zt-lang-row">
+                <input type="checkbox" value="vi" />
+                <span class="zt-check-box" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.2 5.8 10.5 11.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+                <span class="zt-lang-name">Vietnamese</span>
+                <span class="zt-lang-native">Tiếng Việt</span>
+              </label>
+              <label class="zt-lang-row">
+                <input type="checkbox" value="en" />
+                <span class="zt-check-box" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.2 5.8 10.5 11.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+                <span class="zt-lang-name">English</span>
+                <span class="zt-lang-native">English</span>
+              </label>
+              <label class="zt-lang-row">
+                <input type="checkbox" value="zh-CN" />
+                <span class="zt-check-box" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.2 5.8 10.5 11.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+                <span class="zt-lang-name">Chinese</span>
+                <span class="zt-lang-native">中文 (简体)</span>
+              </label>
+              <label class="zt-lang-row">
+                <input type="checkbox" value="ko" />
+                <span class="zt-check-box" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.2 5.8 10.5 11.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+                <span class="zt-lang-name">Korean</span>
+                <span class="zt-lang-native">한국어</span>
+              </label>
+              <label class="zt-lang-row">
+                <input type="checkbox" value="ja" />
+                <span class="zt-check-box" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.2 5.8 10.5 11.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+                <span class="zt-lang-name">Japanese</span>
+                <span class="zt-lang-native">日本語</span>
+              </label>
+              <label class="zt-lang-row">
+                <input type="checkbox" value="th" />
+                <span class="zt-check-box" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.2 5.8 10.5 11.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+                <span class="zt-lang-name">Thai</span>
+                <span class="zt-lang-native">ไทย</span>
+              </label>
+            </div>
           </div>
 
           <button type="button" class="zt-btn-primary" id="save">Save</button>
@@ -67,6 +135,7 @@
         </footer>
       </div>
     </div>
+    <script src="lang-utils.js"></script>
     <script src="options.js"></script>
   </body>
 </html>
