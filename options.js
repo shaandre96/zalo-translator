@@ -13,6 +13,11 @@ document.getElementById("save").addEventListener("click", async () => {
   const sourceLangs = boxes()
     .filter((cb) => cb.checked)
     .map((cb) => cb.value);
+  if (sourceLangs.length === 0) {
+    statusEl.textContent = "Select at least one language.";
+    setTimeout(() => (statusEl.textContent = ""), 3000);
+    return;
+  }
   await chrome.storage.sync.set({ sourceLangs });
   statusEl.textContent = "Saved.";
   setTimeout(() => (statusEl.textContent = ""), 2000);
