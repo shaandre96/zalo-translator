@@ -48,14 +48,18 @@ Rejected alternatives:
 - Persist as `sourceLangs: string[]` in `chrome.storage.sync`, e.g.
   `["en","zh-CN","ko","ja","th"]`.
 - **Default = all 5 checked.** Migration: if legacy `sourceLang` / `targetLang`
-  keys exist, ignore them and seed the new default. (Legacy keys may be left in
-  storage; they are simply unused.)
+  keys exist in storage, **remove them** (`chrome.storage.sync.remove`) and seed
+  the new default `sourceLangs`. No legacy keys are left behind.
 - Save button persists `sourceLangs`; status message unchanged.
 
 ### 2. Translation request — `background.js`
 
 - Always call Google with `sl=auto&tl=vi` (drop the stored `sourceLang` /
   `targetLang` lookup).
+- Run the one-time legacy-key migration here on service-worker startup
+  (`chrome.runtime.onInstalled`): if `sourceLang` / `targetLang` are present and
+  `sourceLangs` is unset, seed `sourceLangs` to the default 5 and remove the two
+  legacy keys.
 - Continue returning `{ translation, detected }`. The `detected` value
   (`data[2]`) is the filter key used by the content script.
 - Rate-limiting, queue, and backoff logic are unchanged.
